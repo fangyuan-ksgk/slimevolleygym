@@ -32,37 +32,41 @@ if __name__=="__main__":
   """
 
   if RENDER_MODE:
-    from pyglet.window import key
+    import pygame
     from time import sleep
+    pygame.init()  # Initialize pygame
 
   manualAction = [0, 0, 0] # forward, backward, jump
   otherManualAction = [0, 0, 0]
   manualMode = False
   otherManualMode = False
 
-  # taken from https://github.com/openai/gym/blob/master/gym/envs/box2d/car_racing.py
-  def key_press(k, mod):
+  def handle_input():
     global manualMode, manualAction, otherManualMode, otherManualAction
-    if k == key.LEFT:  manualAction[0] = 1
-    if k == key.RIGHT: manualAction[1] = 1
-    if k == key.UP:    manualAction[2] = 1
-    if (k == key.LEFT or k == key.RIGHT or k == key.UP): manualMode = True
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:  manualAction[0] = 1
+            if event.key == pygame.K_RIGHT: manualAction[1] = 1
+            if event.key == pygame.K_UP:    manualAction[2] = 1
+            if event.key in [pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP]: 
+                manualMode = True
 
-    if k == key.D:     otherManualAction[0] = 1
-    if k == key.A:     otherManualAction[1] = 1
-    if k == key.W:     otherManualAction[2] = 1
-    if (k == key.D or k == key.A or k == key.W): otherManualMode = True
+            if event.key == pygame.K_d:     otherManualAction[0] = 1
+            if event.key == pygame.K_a:     otherManualAction[1] = 1
+            if event.key == pygame.K_w:     otherManualAction[2] = 1
+            if event.key in [pygame.K_d, pygame.K_a, pygame.K_w]: 
+                otherManualMode = True
 
-  def key_release(k, mod):
-    global manualMode, manualAction, otherManualMode, otherManualAction
-    if k == key.LEFT:  manualAction[0] = 0
-    if k == key.RIGHT: manualAction[1] = 0
-    if k == key.UP:    manualAction[2] = 0
-    if k == key.D:     otherManualAction[0] = 0
-    if k == key.A:     otherManualAction[1] = 0
-    if k == key.W:     otherManualAction[2] = 0
+        elif event.type == pygame.KEYUP:
+            if event.key == pygame.K_LEFT:  manualAction[0] = 0
+            if event.key == pygame.K_RIGHT: manualAction[1] = 0
+            if event.key == pygame.K_UP:    manualAction[2] = 0
+            if event.key == pygame.K_d:     otherManualAction[0] = 0
+            if event.key == pygame.K_a:     otherManualAction[1] = 0
+            if event.key == pygame.K_w:     otherManualAction[2] = 0
 
   policy = slimevolleygym.BaselinePolicy() # defaults to use RNN Baseline for player
+  otherPolicy = slimevolleygym.BaselinePolicy() # TODO: change to another policy (?)
 
   env = gym.make("SlimeVolley-v0")
   env.seed(np.random.randint(0, 10000))
@@ -70,10 +74,9 @@ if __name__=="__main__":
 
   if RENDER_MODE:
     env.render()
-    env.viewer.window.on_key_press = key_press
-    env.viewer.window.on_key_release = key_release
 
   obs = env.reset()
+  otherObs = obs  # Initialize otherObs with the same initial observation
 
   steps = 0
   total_reward = 0
@@ -81,28 +84,28 @@ if __name__=="__main__":
 
   done = False
 
-  while not done:
-
-    if manualMode: # override with keyboard
-      action = manualAction
+  while True:
+    if not manualMode:
+        action = policy.predict(obs)
     else:
-      action = policy.predict(obs)
+        action = manualAction
 
-    if otherManualMode:
-      otherAction = otherManualAction
-      obs, reward, done, _ = env.step(action, otherAction)
+    if not otherManualMode:
+        otherAction = otherPolicy.predict(otherObs)
     else:
-      obs, reward, done, _ = env.step(action)
+        otherAction = otherManualAction
 
-    if reward > 0 or reward < 0:
-      manualMode = False
-      otherManualMode = False
-
-    total_reward += reward
+    obs, reward, done, info = env.step(action, otherAction)
+    otherObs = info['otherObs']
 
     if RENDER_MODE:
-      env.render()
-      sleep(0.02) # 0.01
+        handle_input()
+        env.render()
+        sleep(0.02)
+
+    if done:
+        obs = env.reset()
+        otherObs = obs # same observation at the beginning
 
   env.close()
   print("cumulative score", total_reward)
