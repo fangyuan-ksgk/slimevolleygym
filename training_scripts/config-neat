@@ -10,6 +10,16 @@ activation_default      = sigmoid
 activation_mutate_rate = 0.0
 activation_options     = sigmoid tanh relu
 
+# node aggregation options
+aggregation_default     = sum
+aggregation_mutate_rate = 0.0
+aggregation_options     = sum
+
+# genome compatibility options
+single_structural_mutation = false
+structural_mutation_surer = default
+initial_connection       = unconnected
+
 # node add/remove rates
 node_add_prob           = 0.2
 node_delete_prob        = 0.2
@@ -36,6 +46,7 @@ bias_min_value          = -30.0
 bias_mutate_power       = 0.5
 bias_mutate_rate        = 0.7
 bias_replace_rate       = 0.1
+bias_init_type          = gaussian
 
 # node response options
 response_init_mean      = 1.0
@@ -45,6 +56,7 @@ response_min_value      = -30.0
 response_mutate_power   = 0.0
 response_mutate_rate    = 0.0
 response_replace_rate   = 0.0
+response_init_type      = gaussian
 
 # connection weight options
 weight_init_mean        = 0.0
