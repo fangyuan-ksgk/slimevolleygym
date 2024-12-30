@@ -17,7 +17,8 @@ def eval_genome(genome, config):
     Uses the survival bonus mode for better training signal.
     """
     net = neat.nn.FeedForwardNetwork.create(genome, config)
-    env = gym.make("SlimeVolley-v0")
+    # Disable environment checker to avoid numpy bool type issues
+    env = gym.make("SlimeVolley-v0", disable_env_checker=True)
     env.survival_bonus = True  # Enable survival bonus
     
     num_episodes = 3  # Number of episodes to evaluate each genome
