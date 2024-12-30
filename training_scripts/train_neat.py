@@ -18,9 +18,9 @@ def eval_genome_vs_opponent(genome, opponent_genome, config, num_episodes=3):
     net = neat.nn.FeedForwardNetwork.create(genome, config)
     opponent_net = neat.nn.FeedForwardNetwork.create(opponent_genome, config)
     
-    env = gym.make("SlimeVolley-v0", disable_env_checker=True)
+    env = gym.make("SlimeVolley-v0", disable_env_checker=True, new_step_api=True)
     env.survival_bonus = True  # Enable survival bonus for better training signal
-    env.multiagent = True  # Enable multiagent mode
+    env = env.unwrapped  # Unwrap to access raw environment for multiagent mode
     
     total_fitness = 0
     wins = 0
@@ -40,7 +40,7 @@ def eval_genome_vs_opponent(genome, opponent_genome, config, num_episodes=3):
             opponent_action_values = opponent_net.activate(opponent_obs)
             opponent_action = [1 if v > 0.5 else 0 for v in opponent_action_values]
             
-            # Take actions in environment using multiagent mode
+            # Take actions in environment using raw environment for multiagent mode
             obs, reward, done, info = env.step(action, opponent_action)
             episode_fitness += reward
             
@@ -207,29 +207,26 @@ def run_neat(config_file):
     # Save checkpoint every 10 generations
     pop.add_reporter(neat.Checkpointer(10, filename_prefix='neat-checkpoint-'))
 
-    def post_evaluate_callback(config, population, species_set):
+    def post_evaluate_callback(config, population, species_set, best_genome):
         """Update the generation's best performer after evaluation"""
-        best = None
-        best_fitness = float('-inf')
-        
-        for genome in population.values():
-            if genome.fitness > best_fitness:
-                best = genome
-                best_fitness = genome.fitness
-        
-        eval_genome.generation_best = best
+        eval_genome.generation_best = best_genome
         
         # Print detailed statistics for monitoring
         print(f"\nGeneration Statistics:")
-        print(f"Best Fitness: {best_fitness:.6f}")
+        print(f"Best Fitness: {best_genome.fitness:.6f}")
         print(f"Number of Species: {len(species_set.species)}")
         print(f"Population Size: {len(population)}")
-        print(f"Best Genome Size: {len(best.connections)}")
+        print(f"Best Genome Size: {len(best_genome.connections)}")
+        print(f"Best Genome Key: {best_genome.key}")
+        print(f"Winning Streak: {getattr(best_genome, 'winning_streak', 0)}")
     
-    # Add post-evaluation callback
-    pop.add_reporter(neat.reporting.BaseReporter())
-    pop.reporters[-1].post_evaluate = post_evaluate_callback
-
+    # Create and add custom reporter with post-evaluation callback
+    class CustomReporter(neat.reporting.BaseReporter):
+        def post_evaluate(self, config, population, species, best_genome):
+            post_evaluate_callback(config, population, species, best_genome)
+    
+    pop.add_reporter(CustomReporter())
+    
     # Run for up to 1000 generations to match GA's tournament count
     # GA does 500k tournaments with 128 agents ≈ 3900 tournaments per agent
     # Our system does ~4 matches per genome per generation, so we need ~975 generations
