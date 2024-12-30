@@ -69,7 +69,7 @@ def rollout(env, policy0, policy1, render_mode=False):
 
     # uses a 2nd (optional) parameter for step to put in the other action
     # and returns the other observation in the 4th optional "info" param in gym's step()
-    obs0, reward, done, info = env.step(action0, action1)
+    obs0, reward, done, info = env.unwrapped.step(action0, action1)  # Use unwrapped env for direct access to two-action step method
     obs1 = info['otherObs']
 
     total_reward += reward
@@ -142,8 +142,8 @@ if __name__=="__main__":
 
   env = gym.make("SlimeVolley-v0")
   env.seed(args.seed)
-
-  render_mode = args.render
+  if args.render:
+    env.unwrapped.rendering = True  # Enable rendering on base environment
 
   assert checkchoice(args.right), "pls enter a valid agent"
   assert checkchoice(args.left), "pls enter a valid agent"
@@ -171,7 +171,7 @@ if __name__=="__main__":
   policy1 = MODEL[c1](path1) # the left agent
 
   history = evaluate_multiagent(env, policy0, policy1,
-    render_mode=render_mode, n_trials=args.trials, init_seed=args.seed)
+    render_mode=args.render, n_trials=args.trials, init_seed=args.seed)
 
   print("history dump:", history)
   print(c0+" scored", np.round(np.mean(history), 3), "±", np.round(np.std(history), 3), "vs",

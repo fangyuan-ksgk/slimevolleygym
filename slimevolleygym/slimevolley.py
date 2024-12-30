@@ -21,6 +21,7 @@ from gym.envs.registration import register
 import numpy as np
 import cv2 # installed with gym anyways
 from collections import deque
+import pygame  # for rendering
 
 np.set_printoptions(threshold=20, precision=3, suppress=True, linewidth=200)
 
@@ -180,12 +181,7 @@ def rect(canvas, x, y, width, height, color):
       color, thickness=-1, lineType=cv2.LINE_AA)
     return canvas
   else:
-    box = rendering.make_polygon([(0,0), (0,-height), (width, -height), (width,0)])
-    trans = rendering.Transform()
-    trans.set_translation(x, y)
-    _add_attrs(box, color)
-    box.add_attr(trans)
-    canvas.add_onetime(box)
+    pygame.draw.rect(canvas, color, (round(x), round(WINDOW_HEIGHT-y), round(width), round(height)))
     return canvas
 
 def half_circle(canvas, x, y, r, color):
@@ -194,12 +190,9 @@ def half_circle(canvas, x, y, r, color):
     return cv2.ellipse(canvas, (round(x), WINDOW_HEIGHT-round(y)),
       (round(r), round(r)), 0, 0, -180, color, thickness=-1, lineType=cv2.LINE_AA)
   else:
-    geom = make_half_circle(r)
-    trans = rendering.Transform()
-    trans.set_translation(x, y)
-    _add_attrs(geom, color)
-    geom.add_attr(trans)
-    canvas.add_onetime(geom)
+    pygame.draw.arc(canvas, color, 
+                   (round(x-r), round(WINDOW_HEIGHT-y-r), round(2*r), round(2*r)),
+                   0, math.pi, width=0)
     return canvas
 
 def circle(canvas, x, y, r, color):
@@ -208,12 +201,7 @@ def circle(canvas, x, y, r, color):
     return cv2.circle(canvas, (round(x), round(WINDOW_HEIGHT-y)), round(r),
       color, thickness=-1, lineType=cv2.LINE_AA)
   else:
-    geom = rendering.make_circle(r, res=40)
-    trans = rendering.Transform()
-    trans.set_translation(x, y)
-    _add_attrs(geom, color)
-    geom.add_attr(trans)
-    canvas.add_onetime(geom)
+    pygame.draw.circle(canvas, color, (round(x), round(WINDOW_HEIGHT-y)), round(r))
     return canvas
 
 class Particle:
@@ -319,7 +307,10 @@ class Wall:
     self.h = h;
     self.c = c
   def display(self, canvas):
-    return rect(canvas, toX(self.x-self.w/2), toY(self.y+self.h/2), toP(self.w), toP(self.h), color=self.c)
+    if PIXEL_MODE:
+      return rect(canvas, toX(self.x-self.w/2), toY(self.y+self.h/2), toP(self.w), toP(self.h), color=self.c)
+    rect(canvas, toX(self.x-self.w/2), toY(self.y+self.h/2), toP(self.w), toP(self.h), color=self.c)
+    return canvas
 
 class RelativeState:
   """
@@ -445,7 +436,10 @@ class Agent:
     eyeX = 0
     eyeY = 0
 
-    canvas = half_circle(canvas, toX(x), toY(y), toP(r), color=self.c)
+    if PIXEL_MODE:
+      canvas = half_circle(canvas, toX(x), toY(y), toP(r), color=self.c)
+    else:
+      half_circle(canvas, toX(x), toY(y), toP(r), color=self.c)
 
     # track ball with eyes (replace with observed info later):
     c = math.cos(angle)
@@ -461,12 +455,18 @@ class Agent:
     eyeX = ballX/dist
     eyeY = ballY/dist
 
-    canvas = circle(canvas, toX(x+(0.6)*r*c), toY(y+(0.6)*r*s), toP(r)*0.3, color=(255, 255, 255))
-    canvas = circle(canvas, toX(x+(0.6)*r*c+eyeX*0.15*r), toY(y+(0.6)*r*s+eyeY*0.15*r), toP(r)*0.1, color=(0, 0, 0))
-
-    # draw coins (lives) left
-    for i in range(1, self.life):
-      canvas = circle(canvas, toX(self.dir*(REF_W/2+0.5-i*2.)), WINDOW_HEIGHT-toY(1.5), toP(0.5), color=COIN_COLOR)
+    if PIXEL_MODE:
+      canvas = circle(canvas, toX(x+(0.6)*r*c), toY(y+(0.6)*r*s), toP(r)*0.3, color=(255, 255, 255))
+      canvas = circle(canvas, toX(x+(0.6)*r*c+eyeX*0.15*r), toY(y+(0.6)*r*s+eyeY*0.15*r), toP(r)*0.1, color=(0, 0, 0))
+      # draw coins (lives) left
+      for i in range(1, self.life):
+        canvas = circle(canvas, toX(self.dir*(REF_W/2+0.5-i*2.)), WINDOW_HEIGHT-toY(1.5), toP(0.5), color=COIN_COLOR)
+    else:
+      circle(canvas, toX(x+(0.6)*r*c), toY(y+(0.6)*r*s), toP(r)*0.3, color=(255, 255, 255))
+      circle(canvas, toX(x+(0.6)*r*c+eyeX*0.15*r), toY(y+(0.6)*r*s+eyeY*0.15*r), toP(r)*0.1, color=(0, 0, 0))
+      # draw coins (lives) left
+      for i in range(1, self.life):
+        circle(canvas, toX(self.dir*(REF_W/2+0.5-i*2.)), WINDOW_HEIGHT-toY(1.5), toP(0.5), color=COIN_COLOR)
 
     return canvas
 
@@ -603,15 +603,25 @@ class Game:
   def display(self, canvas):
     # background color
     # if PIXEL_MODE is True, canvas is an RGB array.
-    # if PIXEL_MODE is False, canvas is viewer object
-    canvas = create_canvas(canvas, c=BACKGROUND_COLOR)
-    canvas = self.fence.display(canvas)
-    canvas = self.fenceStub.display(canvas)
-    canvas = self.agent_left.display(canvas, self.ball.x, self.ball.y)
-    canvas = self.agent_right.display(canvas, self.ball.x, self.ball.y)
-    canvas = self.ball.display(canvas)
-    canvas = self.ground.display(canvas)
-    return canvas
+    # if PIXEL_MODE is False, canvas is pygame surface
+    if PIXEL_MODE:
+      canvas = create_canvas(canvas, c=BACKGROUND_COLOR)
+      canvas = self.fence.display(canvas)
+      canvas = self.fenceStub.display(canvas)
+      canvas = self.agent_left.display(canvas, self.ball.x, self.ball.y)
+      canvas = self.agent_right.display(canvas, self.ball.x, self.ball.y)
+      canvas = self.ball.display(canvas)
+      canvas = self.ground.display(canvas)
+      return canvas
+    else:
+      canvas.fill(BACKGROUND_COLOR)
+      self.fence.display(canvas)
+      self.fenceStub.display(canvas)
+      self.agent_left.display(canvas, self.ball.x, self.ball.y)
+      self.agent_right.display(canvas, self.ball.x, self.ball.y)
+      self.ball.display(canvas)
+      self.ground.display(canvas)
+      return canvas
   def betweenGameControl(self):
     agent = [self.agent_left, self.agent_right]
     if (self.delayScreen.life > 0):
@@ -739,6 +749,11 @@ class SlimeVolleyEnv(gym.Env):
 
     self.viewer = None
 
+    # pygame-specific attributes
+    self.pygame_initialized = False
+    self.screen = None
+    self.clock = None
+
     # another avenue to override the built-in AI's action, going past many env wraps:
     self.otherAction = None
 
@@ -824,6 +839,14 @@ class SlimeVolleyEnv(gym.Env):
     self.init_game_state()
     return self.getObs()
 
+  def init_pygame(self):
+    if not self.pygame_initialized:
+        pygame.init()
+        self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+        pygame.display.set_caption("SlimeVolley")
+        self.clock = pygame.time.Clock()
+        self.pygame_initialized = True
+
   def checkViewer(self):
     # for opengl viewer
     if self.viewer is None:
@@ -831,41 +854,66 @@ class SlimeVolleyEnv(gym.Env):
       self.viewer = rendering.SimpleImageViewer(maxwidth=2160) # macbook pro resolution
 
   def render(self, mode='human', close=False):
+    """
+    mode: str
+      'human': render to the current display or terminal and return nothing
+      'rgb_array': numpy array with shape (WINDOW_HEIGHT, WINDOW_WIDTH, 3) for RGB values
+      'state': return the game state dictionary (just for debugging)
+    close: bool
+      close all open renderings
+    """
+    if close:
+      if self.pygame_initialized:
+        pygame.quit()
+        self.pygame_initialized = False
+      return
+
+    if mode == 'state':
+      return self.game.__dict__
+
+    if mode not in ['human', 'rgb_array', 'state']:
+      raise ValueError(f"Unsupported render mode: {mode}")
 
     if PIXEL_MODE:
       if self.canvas is not None: # already rendered
         rgb_array = self.canvas
         self.canvas = None
         if mode == 'rgb_array' or mode == 'human':
-          self.checkViewer()
           larger_canvas = upsize_image(rgb_array)
-          self.viewer.imshow(larger_canvas)
-          if (mode=='rgb_array'):
-            return larger_canvas
-          else:
+          if mode == 'human':
+            self.init_pygame()
+            surf = pygame.surfarray.make_surface(larger_canvas.transpose(1, 0, 2))
+            self.screen.blit(surf, (0, 0))
+            pygame.display.flip()
             return
+          return larger_canvas
 
       self.canvas = self.game.display(self.canvas)
       # scale down to original res (looks better than rendering directly to lower res)
       self.canvas = downsize_image(self.canvas)
 
-      if mode=='state':
+      if mode == 'state':
         return np.copy(self.canvas)
 
       # upsampling w/ nearest interp method gives a retro "pixel" effect look
       larger_canvas = upsize_image(self.canvas)
-      self.checkViewer()
-      self.viewer.imshow(larger_canvas)
-      if (mode=='rgb_array'):
-        return larger_canvas
+      if mode == 'human':
+        self.init_pygame()
+        surf = pygame.surfarray.make_surface(larger_canvas.transpose(1, 0, 2))
+        self.screen.blit(surf, (0, 0))
+        pygame.display.flip()
+        return
+      return larger_canvas
 
-    else: # pyglet renderer
-      if self.viewer is None:
-        checkRendering()
-        self.viewer = rendering.Viewer(WINDOW_WIDTH, WINDOW_HEIGHT)
-
-      self.game.display(self.viewer)
-      return self.viewer.render(return_rgb_array = mode=='rgb_array')
+    else: # pygame renderer
+      self.init_pygame()
+      self.screen.fill(BACKGROUND_COLOR)
+      self.game.display(self.screen)
+      pygame.display.flip()
+      
+      if mode == 'rgb_array':
+        return pygame.surfarray.array3d(self.screen).transpose(1, 0, 2)
+      return
 
   def close(self):
     if self.viewer:
