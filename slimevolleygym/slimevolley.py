@@ -918,6 +918,9 @@ class SlimeVolleyEnv(gym.Env):
   def close(self):
     if self.viewer:
       self.viewer.close()
+    if hasattr(self, 'pygame_initialized') and self.pygame_initialized:
+      pygame.quit()
+      self.pygame_initialized = False
     
   def get_action_meanings(self):
     return [self.atari_action_meaning[i] for i in self.atari_action_set]
