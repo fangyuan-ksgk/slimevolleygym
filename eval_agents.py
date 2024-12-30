@@ -140,10 +140,9 @@ if __name__=="__main__":
   if args.pixel:
     slimevolleygym.setPixelObsMode()
 
-  env = gym.make("SlimeVolley-v0")
+  render_mode = 'rgb_array' if args.render else None
+  env = gym.make("SlimeVolley-v0", render_mode=render_mode)
   env.seed(args.seed)
-  if args.render:
-    env.unwrapped.rendering = True  # Enable rendering on base environment
 
   assert checkchoice(args.right), "pls enter a valid agent"
   assert checkchoice(args.left), "pls enter a valid agent"
