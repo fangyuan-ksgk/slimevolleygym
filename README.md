@@ -8,17 +8,10 @@ Slime Volleyball is a game created in the early 2000s by an unknown author.
 
 *“The physics of the game are a little ‘dodgy,’ but its simple gameplay made it instantly addictive.”*<br/>
 
----
-
-**Update (May 12, 2022):** This environment has been ported over to [EvoJAX](https://github.com/google/evojax), hardware-accelerated neuroevolution toolkit that allows SlimeVolley to run on GPUs, enabling training time in minutes rather than hours.
-
----
-
-SlimeVolleyGym is a simple gym environment for testing single and multi-agent reinforcement learning algorithms.
-
-The game is very simple: the agent's goal is to get the ball to land on the ground of its opponent's side, causing its opponent to lose a life. Each agent starts off with five lives. The episode ends when either agent loses all five lives, or after 3000 timesteps has passed. An agent receives a reward of +1 when its opponent loses or -1 when it loses a life.
-
-This environment is based on [Neural Slime Volleyball](https://otoro.net/slimevolley/), a JavaScript game I created in [2015](https://blog.otoro.net/2015/03/28/neural-slime-volleyball/) that used self-play and evolution to train a simple neural network agent to play the game better than most human players. I decided to port it over to Python as a lightweight and fast gym environment as a testbed for more advanced RL methods such as multi-agent, self-play, continual learning, and imitation learning algorithms.
+Environment Set up (Working on M2 device)
+```bash
+bash set.sh
+```
 
 ### Note: Regarding Libraries
 
