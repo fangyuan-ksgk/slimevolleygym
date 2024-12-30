@@ -14,3 +14,6 @@ pip install "opencv-python<=4.3"
 pip uninstall numpy
 pip install "numpy<2.0"
 pip install pygame==2.6.1
+pip install graphviz
+pip install neat-python
+pip install matplotlib
