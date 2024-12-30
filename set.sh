@@ -17,3 +17,4 @@ pip install pygame==2.6.1
 pip install graphviz
 pip install neat-python
 pip install matplotlib
+pip install pillow==9.5.0

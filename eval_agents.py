@@ -60,10 +60,9 @@ def rollout(env, policy0, policy1, render_mode=False):
 
   done = False
   total_reward = 0
-  #count = 0
+  frames = []  # Store frames for visualization verification
 
   while not done:
-
     action0 = policy0.predict(obs0)
     action1 = policy1.predict(obs1)
 
@@ -75,24 +74,43 @@ def rollout(env, policy0, policy1, render_mode=False):
     total_reward += reward
 
     if render_mode:
-      env.render()
-      """ # used to render stuff to a gif later.
-      img = env.render("rgb_array")
-      filename = os.path.join("gif","daytime",str(count).zfill(8)+".png")
-      cv2.imwrite(filename, cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
-      count += 1
-      """
-      sleep(0.01)
+      frame = env.render()
+      if frame is not None:  # Only append valid frames
+        frames.append(frame)
+      sleep(0.01)  # Small delay to not overwhelm the system
 
-  return total_reward
+  return total_reward, frames
 
 def evaluate_multiagent(env, policy0, policy1, render_mode=False, n_trials=1000, init_seed=721):
   history = []
+  all_frames = []
   for i in range(n_trials):
     env.seed(seed=init_seed+i)
-    cumulative_score = rollout(env, policy0, policy1, render_mode=render_mode)
+    cumulative_score, frames = rollout(env, policy0, policy1, render_mode=render_mode)
     print("cumulative score #", i, ":", cumulative_score)
     history.append(cumulative_score)
+    if frames:  # Only save frames if we got any
+      all_frames.extend(frames)
+      
+  # Save frames if we collected any
+  if all_frames:
+    import os
+    import numpy as np
+    save_dir = '/tmp/eval_frames'
+    os.makedirs(save_dir, exist_ok=True)
+    frames_array = np.array(all_frames)
+    np.save(f'{save_dir}/game_frames.npy', frames_array)
+    print(f"Saved {len(all_frames)} frames to {save_dir}/game_frames.npy")
+    
+    # Save first and last frame as PNG for quick verification
+    try:
+      import cv2
+      cv2.imwrite(f'{save_dir}/first_frame.png', cv2.cvtColor(all_frames[0], cv2.COLOR_RGB2BGR))
+      cv2.imwrite(f'{save_dir}/last_frame.png', cv2.cvtColor(all_frames[-1], cv2.COLOR_RGB2BGR))
+      print(f"Saved first and last frames as PNG images in {save_dir}/")
+    except ImportError:
+      print("Warning: cv2 not available, skipping PNG export")
+      
   return history
 
 if __name__=="__main__":

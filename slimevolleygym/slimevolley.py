@@ -658,8 +658,10 @@ class SlimeVolleyEnv(gym.Env):
   for the left agent is the negative of this number.
   """
   metadata = {
-    'render.modes': ['human', 'rgb_array', 'state'],
-    'video.frames_per_second' : 50
+    'render_modes': ['human', 'rgb_array', 'state'],
+    'render.modes': ['human', 'rgb_array', 'state'],  # keep for backward compatibility
+    'video.frames_per_second': 50,
+    'render_fps': 50
   }
 
   # for compatibility with typical atari wrappers
@@ -704,15 +706,19 @@ class SlimeVolleyEnv(gym.Env):
   survival_bonus = False # Depreciated: augment reward, easier to train
   multiagent = True # optional args anyways
 
-  def __init__(self):
+  def __init__(self, render_mode=None, forbid_actions=False, pixel_mode=False, frameskip=None):
     """
+    Args:
+        render_mode (str): One of ['human', 'rgb_array', 'state']
+        forbid_actions (bool): If True, limit agents to 3 actions (do nothing, move left, move right)
+        pixel_mode (bool): If True, use pixel observations
+        frameskip (int): Number of frames to skip between observations
+
     Reward modes:
-
-    net score = right agent wins minus left agent wins
-
-    0: returns net score (basic reward)
-    1: returns 0.01 x number of timesteps (max 3000) (survival reward)
-    2: sum of basic reward and survival reward
+        net score = right agent wins minus left agent wins
+        0: returns net score (basic reward)
+        1: returns 0.01 x number of timesteps (max 3000) (survival reward)
+        2: sum of basic reward and survival reward
 
     0 is suitable for evaluation, while 1 and 2 may be good for training
 
@@ -722,7 +728,7 @@ class SlimeVolleyEnv(gym.Env):
     Setting self.from_pixels to True makes the observation with multiples
     of 84, since usual atari wrappers downsample to 84x84
     """
-
+    self.render_mode = render_mode
     self.t = 0
     self.t_limit = 3000
 
@@ -839,11 +845,14 @@ class SlimeVolleyEnv(gym.Env):
     self.init_game_state()
     return self.getObs()
 
-  def init_pygame(self):
+  def init_pygame(self, headless=False):
     if not self.pygame_initialized:
         pygame.init()
-        self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-        pygame.display.set_caption("SlimeVolley")
+        if not headless:
+            self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+            pygame.display.set_caption("SlimeVolley")
+        else:
+            self.screen = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
         self.clock = pygame.time.Clock()
         self.pygame_initialized = True
 
@@ -906,13 +915,16 @@ class SlimeVolleyEnv(gym.Env):
       return larger_canvas
 
     else: # pygame renderer
-      self.init_pygame()
+      headless = (mode == 'rgb_array')
+      self.init_pygame(headless=headless)
       self.screen.fill(BACKGROUND_COLOR)
       self.game.display(self.screen)
-      pygame.display.flip()
+      
+      if not headless:
+          pygame.display.flip()
       
       if mode == 'rgb_array':
-        return pygame.surfarray.array3d(self.screen).transpose(1, 0, 2)
+          return pygame.surfarray.array3d(self.screen).transpose(1, 0, 2)
       return
 
   def close(self):
