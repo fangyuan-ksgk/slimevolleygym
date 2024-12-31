@@ -42,7 +42,7 @@ population = np.random.normal(size=(population_size, param_count)) * 0.5 # each 
 winning_streak = [0] * population_size # store the number of wins for this agent (including mutated ones)
 
 # create the gym environment, and seed it
-env = gym.make("SlimeVolley-v0")
+env = gym.make("SlimeVolley-v0", disable_env_checker=True)
 env.seed(random_seed)
 np.random.seed(random_seed)
 
@@ -80,9 +80,24 @@ for tournament in range(1, total_tournaments+1):
   if (tournament ) % 100 == 0:
     record_holder = np.argmax(winning_streak)
     record = winning_streak[record_holder]
-    print("tournament:", tournament,
-          "best_winning_streak:", record,
-          "mean_duration", np.mean(history),
-          "stdev:", np.std(history),
-         )
+    
+    # Calculate network statistics
+    param_mean = np.mean(population, axis=0)
+    param_std = np.std(population, axis=0)
+    param_changes = np.abs(population - population[record_holder])
+    diversity = np.mean(param_changes)
+    
+    print("\nTournament Statistics:")
+    print("=====================")
+    print(f"Tournament: {tournament}")
+    print(f"Best Winning Streak: {record}")
+    print(f"Mean Episode Duration: {np.mean(history):.2f}")
+    print(f"Episode Duration StdDev: {np.std(history):.2f}")
+    print("\nNetwork Evolution:")
+    print("=================")
+    print(f"Parameter Diversity: {diversity:.4f}")
+    print(f"Mean Parameter Value: {np.mean(param_mean):.4f}")
+    print(f"Parameter StdDev: {np.mean(param_std):.4f}")
+    print(f"Top 5 Winning Streaks: {sorted(winning_streak, reverse=True)[:5]}")
+    print("=====================\n")
     history = []

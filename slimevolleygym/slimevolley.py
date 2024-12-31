@@ -369,15 +369,15 @@ class Agent:
   def lives(self):
     return self.life
   def setAction(self, action):
-    forward = False
-    backward = False
-    jump = False
-    if action[0] > 0:
-      forward = True
-    if action[1] > 0:
-      backward = True
-    if action[2] > 0:
-      jump = True
+    """
+    Set agent's action based on input array/list
+    action: array-like with 3 elements [forward, backward, jump]
+    """
+    action = np.asarray(action).flatten()  # Convert to flat numpy array
+    forward = bool(action[0] > 0)
+    backward = bool(action[1] > 0)
+    jump = bool(action[2] > 0)
+    
     self.desired_vx = 0
     self.desired_vy = 0
     if (forward and (not backward)):
@@ -770,7 +770,7 @@ class SlimeVolleyEnv(gym.Env):
     note: although the action space is multi-binary, float vectors
     are fine (refer to setAction() to see how they get interpreted)
     """
-    done = False
+    done = bool(False)  # Ensure we return Python's built-in bool type
     self.t += 1
 
     if self.otherAction is not None:
@@ -792,10 +792,10 @@ class SlimeVolleyEnv(gym.Env):
     obs = self.getObs()
 
     if self.t >= self.t_limit:
-      done = True
+      done = bool(True)  # Ensure we return Python's built-in bool type
 
     if self.game.agent_left.life <= 0 or self.game.agent_right.life <= 0:
-      done = True
+      done = bool(True)  # Ensure we return Python's built-in bool type
 
     otherObs = None
     if self.multiagent:
@@ -959,7 +959,7 @@ def multiagent_rollout(env, policy_right, policy_left, render_mode=False):
 
     # uses a 2nd (optional) parameter for step to put in the other action
     # and returns the other observation in the 4th optional "info" param in gym's step()
-    obs_right, reward, done, info = env.step(action_right, action_left)
+    obs_right, reward, done, info = env.step([action_right, action_left])
     obs_left = info['otherObs']
 
     total_reward += reward
